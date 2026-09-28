@@ -13,7 +13,6 @@ Run locally:  streamlit run app.py
 """
 
 import io
-import tempfile
 import warnings
 from pathlib import Path
 
@@ -26,7 +25,6 @@ import pandas as pd
 import streamlit as st
 
 from analysis import ResultAnalyzer
-from extractor import extract_many
 from graphs import ResultGraphs
 
 # graphs.py calls plt.show(), which is a harmless no-op on the Agg backend
@@ -39,39 +37,14 @@ st.set_page_config(page_title="PTU Result Analysis System", layout="wide")
 # DATA LOADING
 # -----------------------------------------------------
 
-@st.cache_data(show_spinner="Extracting results from PDFs...")
-def load_from_pdfs(files):
-    """files: tuple of (filename, bytes). Returns the merged DataFrame."""
-    with tempfile.TemporaryDirectory() as tmp:
-        paths = []
-        for name, data in files:
-            p = Path(tmp) / Path(name).name
-            p.write_bytes(data)
-            paths.append(str(p))
-        return extract_many(paths)
+@st.cache_data(show_spinner="Loading results.csv...")
+def load_from_csv():
+    return pd.read_csv("results.csv")
 
 
 def get_dataframe():
-    st.sidebar.header("Data")
-
-    uploads = st.sidebar.file_uploader(
-        "Upload result PDF(s)",
-        type="pdf",
-        accept_multiple_files=True,
-    )
-
-    if uploads:
-        files = tuple((f.name, f.getvalue()) for f in uploads)
-        df = load_from_pdfs(files)
-        if df.empty:
-            st.sidebar.error("No student records could be read from these PDFs.")
-            return None
-        return df
-
     if Path("results.csv").exists():
-        st.sidebar.caption("No PDFs uploaded - using results.csv")
-        return pd.read_csv("results.csv")
-
+        return load_from_csv()
     return None
 
 
@@ -91,7 +64,10 @@ st.title("PTU Result Analysis System")
 df = get_dataframe()
 
 if df is None:
-    st.info("Upload one or more PTU result PDFs in the sidebar to begin.")
+    st.error(
+        "results.csv was not found. Run extractor.py first to generate it "
+        "from your result PDFs, then redeploy."
+    )
     st.stop()
 
 csv_text = df.to_csv(index=False)
