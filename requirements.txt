@@ -2,3 +2,5 @@ streamlit
 matplotlib
 pandas
 pdfplumber
+sqlalchemy>=2.0.0
+plotly
